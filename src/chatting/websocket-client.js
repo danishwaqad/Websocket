@@ -1,7 +1,7 @@
 const socket = new WebSocket('ws://localhost:3000'); // Replace with your server URL
 
 socket.onopen = () => {
-    console.log('Connected to WebSocket server');
+  console.log('Connected to WebSocket server');
 };
 
 socket.onmessage = (event) => {
