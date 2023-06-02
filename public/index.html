@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="">
+<head>
+  <title>Chat App</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.3.2/socket.io.js"></script>
+</head>
+<body>
+<h1>Chat App</h1>
+<div id="messages"></div>
+<label for="clientDropdown"></label><select id="clientDropdown" onchange="selectClient()">
+  <option value="">Select a client</option>
+</select>
+<label for="nameInput"></label><input type="text" id="nameInput" placeholder="Enter your name..."/>
+<button onclick="connect()">Connect</button>
+<label for="messageInput"></label><input type="text" id="messageInput" placeholder="Type a message..." disabled/>
+<button onclick="sendMessage()" disabled>Send</button>
+
+<script>
+  const socket = io('ws://localhost:3000');
+  let selectedClient = '';
+
+  socket.on('connect', () => {
+    console.log('Connected to WebSocket server');
+    document.getElementById('messageInput').disabled = false;
+    document.querySelector('button[onclick="sendMessage()"]').disabled = false;
+  });
+
+  socket.on('message', (data) => {
+    console.log('Received message:', data);
+    displayMessage(data.sender, data.message);
+  });
+
+  socket.on('disconnect', () => {
+    console.log('Disconnected from WebSocket server');
+  });
+
+  socket.on('clientList', (clients) => {
+    updateClientDropdown(clients);
+  });
+
+  socket.on('chatHistory', (history) => {
+    const messagesDiv = document.getElementById('messages');
+    messagesDiv.innerHTML = ''; // Clear the messages
+
+    history.forEach((entry) => {
+      displayMessage(entry.sender, entry.message);
+    });
+  });
+
+  function connect() {
+    const nameInput = document.getElementById('nameInput');
+    const name = nameInput.value;
+    socket.emit('connectClient', name);
+  }
+
+  function sendMessage() {
+    const messageInput = document.getElementById('messageInput');
+    const message = messageInput.value;
+
+    if (selectedClient === 'Broadcast') {
+      // Send the message as a broadcast
+      socket.emit('message', {client: 'Broadcast', message}); // Set client as 'Broadcast'
+    } else {
+      // Send the message to the selected client
+      socket.emit('message', {client: selectedClient, message});
+    }
+
+    messageInput.value = '';
+  }
+
+  function displayMessage(sender, message) {
+    const messagesDiv = document.getElementById('messages');
+    const messageElement = document.createElement('p');
+
+    if (sender === 'Broadcast') {
+      messageElement.innerText = `Broadcast: ${message}`;
+    } else {
+      messageElement.innerText = `${sender}: ${message}`;
+    }
+
+    messagesDiv.appendChild(messageElement);
+  }
+
+
+  function selectClient() {
+    selectedClient = document.getElementById('clientDropdown').value;
+    const messagesDiv = document.getElementById('messages');
+    messagesDiv.innerHTML = ''; // Clear the messages
+
+    if (selectedClient) {
+      socket.emit('retrieveChatHistory', selectedClient); // Request chat history for the selected client
+    }
+  }
+
+  function updateClientDropdown(clients) {
+    const clientDropdown = document.getElementById('clientDropdown');
+    clientDropdown.innerHTML = ''; // Clear existing options
+
+    // Add the "Broadcast" option
+    const broadcastOption = document.createElement('option');
+    broadcastOption.value = 'Broadcast';
+    broadcastOption.text = 'Broadcast';
+    clientDropdown.appendChild(broadcastOption);
+
+    clients.forEach((client) => {
+      const option = document.createElement('option');
+      option.value = client;
+      option.text = client;
+      clientDropdown.appendChild(option);
+    });
+  }
+
+</script>
+</body>
+</html>
